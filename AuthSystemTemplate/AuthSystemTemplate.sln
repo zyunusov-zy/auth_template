@@ -6,7 +6,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSystemTemplate.Domain",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSystemTemplate.Application", "AuthSystemTemplate.Application\AuthSystemTemplate.Application.csproj", "{258C13A9-29D7-432D-8308-8615BF650001}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSystemTemplate.Infastructure", "AuthSystemTemplate.Infastructure\AuthSystemTemplate.Infastructure.csproj", "{C76A6618-3E70-4CA4-A2F3-F685DF04351B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthSystemTemplate.Infrastructure", "AuthSystemTemplate.Infrastructure\AuthSystemTemplate.Infrastructure.csproj", "{C76A6618-3E70-4CA4-A2F3-F685DF04351B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

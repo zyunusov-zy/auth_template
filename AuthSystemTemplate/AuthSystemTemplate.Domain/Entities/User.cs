@@ -6,7 +6,7 @@ public class User
     public string Email { get; set; } = null!;
     public string PasswordHash { get; set; } = null!;
     public string PasswordSalt { get; set; } = null!;
-    public bool EmailVerified { get; set; } = false;
+    public bool EmailVerified { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

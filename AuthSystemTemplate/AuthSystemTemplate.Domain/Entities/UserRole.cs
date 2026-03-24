@@ -11,5 +11,5 @@ public class UserRole
     public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
 
     public int? AssignedUserId { get; set; }
-    public User? AssignedBy { get; set; } = null!;
+    public User? AssignedBy { get; set; }
 }

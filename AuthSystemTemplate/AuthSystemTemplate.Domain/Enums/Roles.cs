@@ -2,7 +2,7 @@ namespace AuthSystemTemplate.Domain.Enums;
 
 public enum Roles
 {
-    Admin,
-    Manager,
-    User
+    Admin = 1,
+    Manager = 2,
+    User = 3
 }
