@@ -8,10 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Repositories\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\AuthSystemTemplate.Application\AuthSystemTemplate.Application.csproj" />
       <ProjectReference Include="..\AuthSystemTemplate.Domain\AuthSystemTemplate.Domain.csproj" />
     </ItemGroup>
