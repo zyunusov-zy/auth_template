@@ -1,3 +1,4 @@
+using AuthSystemTemplate.Application.Common.Results;
 using AuthSystemTemplate.Application.DTOs.Auth;
 
 namespace AuthSystemTemplate.Application.Interfaces.Services;
@@ -8,7 +9,7 @@ public interface IAuthService
     /// Register new user
     /// FR-1: User Registration with Email Verification
     /// </summary>
-    Task<RegisterResponse> RegisterAsync(RegisterRequest request);
+    Task<Result<RegisterResponse>> RegisterAsync(RegisterRequest request);
     
     /// <summary>
     /// Login user and generate tokens

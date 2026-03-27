@@ -11,6 +11,7 @@ public class UnitOfWork : IUnitOfWork
     private IRoleRepository? _roles;
     private IRefreshTokenRepository? _refreshTokens;
     private IPasswordResetTokenRepository? _passwordResetTokens;
+    private EmailVerificationTokenRepository? _emailVerificationToken;
 
     public UnitOfWork(AppDbContext context)
     {
@@ -28,6 +29,9 @@ public class UnitOfWork : IUnitOfWork
     
     public IPasswordResetTokenRepository PasswordResetTokens => 
         _passwordResetTokens ??= new PasswordResetTokenRepository(_context);
+    
+    public EmailVerificationTokenRepository EmailVerificationTokens => 
+        _emailVerificationToken ??= new EmailVerificationTokenRepository(_context);
     
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
