@@ -15,37 +15,37 @@ public interface IAuthService
     /// Login user and generate tokens
     /// FR-2: Login with JWT Token Generation
     /// </summary>
-    Task<LoginResponse> LoginAsync(LoginRequest request);
+    Task<Result<LoginResponse>> LoginAsync(LoginRequest request);
     
     /// <summary>
     /// Refresh access token using refresh token
     /// NFR-3: Refresh Token Mechanism
     /// </summary>
-    Task<RefreshTokenResponse> RefreshTokenAsync(string refreshToken);
+    Task<Result<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken);
     
     /// <summary>
     /// Verify email using token
     /// FR-1.6: Token expires after 24 hours
     /// </summary>
-    Task<EmailVerificationResponse> VerifyEmailAsync(string token);
+    Task<Result<EmailVerificationResponse>> VerifyEmailAsync(string token);
     
     /// <summary>
     /// Resend email verification
     /// FR-1.8: Resend verification email functionality
     /// </summary>
-    Task<EmailVerificationResponse> ResendVerificationEmailAsync(string email);
+    Task<Result<EmailVerificationResponse>> ResendVerificationEmailAsync(string email);
     
     /// <summary>
     /// Initiate password reset process
     /// FR-3: Password Reset via Email
     /// </summary>
-    Task<PasswordResetResponse> ForgotPasswordAsync(string email);
+    Task<Result<PasswordResetResponse>> ForgotPasswordAsync(string email);
     
     /// <summary>
     /// Reset password using token
     /// FR-3.5: Validate token before allowing password change
     /// </summary>
-    Task<PasswordResetResponse> ResetPasswordAsync(ResetPasswordRequest request);
+    Task<Result<PasswordResetResponse>> ResetPasswordAsync(ResetPasswordRequest request);
     
     /// <summary>
     /// Logout user (revoke refresh token)

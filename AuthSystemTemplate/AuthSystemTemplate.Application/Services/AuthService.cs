@@ -1,5 +1,6 @@
 using AuthSystemTemplate.Application.Common.Results;
 using AuthSystemTemplate.Application.DTOs.Auth;
+using AuthSystemTemplate.Application.DTOs.User;
 using AuthSystemTemplate.Application.Interfaces.Repositories;
 using AuthSystemTemplate.Application.Interfaces.Services;
 using AuthSystemTemplate.Domain.Entities;
@@ -97,32 +98,89 @@ public class AuthService : IAuthService
         }
     }
 
-    public Task<LoginResponse> LoginAsync(LoginRequest request)
+    public async Task<Result<LoginResponse>> LoginAsync(LoginRequest request)
+    {
+        try
+        {
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return Result<LoginResponse>.Failure(Error.Unauthorized("Invalid credentials"));
+            }
+
+            var isValidPass = _passHash.VerifyPassword(request.Password, user.PasswordHash, user.PasswordSalt);
+            if (!isValidPass)
+            {
+                return Result<LoginResponse>.Failure(Error.Unauthorized("Invalid credentials"));
+            }
+
+            var roles = user.UserRoles.Select(ur => ur.Role.Name.ToString());
+            var accessToken = _tokenService.GenerateAccessToken(user, roles);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            var rolesList = user.UserRoles.Select(ur => ur.Role.Name.ToString()).ToList();
+
+            var userDto = new UserDto
+            (
+                user.Id,
+                user.Email,
+                user.FirstName,
+                user.LastName,
+                rolesList,
+                user.EmailVerified,
+                user.CreatedAt
+            );
+            return Result<LoginResponse>.Success(new LoginResponse(
+                accessToken,
+                refreshToken,
+                3600, // need to change it 
+                "Bearer",
+                userDto));
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Login failed for {Email}", request.Email);
+            throw;
+        }
+    }
+
+    public async Task<Result<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken)
+    {
+        try
+        {
+            var refreshTokenDb = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+            if (refreshTokenDb == null
+                || refreshTokenDb.IsRevoked
+                || refreshTokenDb.ExpiresAt < DateTime.UtcNow)
+                return Result<RefreshTokenResponse>.Failure(Error.Unauthorized("Invalid token"));
+            var user = refreshTokenDb.User;
+            var roles = user.UserRoles.Select(ur => ur.Role.Name.ToString());
+            var accessToken = _tokenService.GenerateAccessToken(user, roles);
+            return Result<RefreshTokenResponse>.Success(new RefreshTokenResponse(accessToken, 3600));
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Refreshing token failed for token: {RefreshToken}", refreshToken);
+            throw;
+        }
+    }
+
+    public Task<Result<EmailVerificationResponse>> VerifyEmailAsync(string token)
     {
         throw new NotImplementedException();
     }
 
-    public Task<RefreshTokenResponse> RefreshTokenAsync(string refreshToken)
+    public Task<Result<EmailVerificationResponse>> ResendVerificationEmailAsync(string email)
     {
         throw new NotImplementedException();
     }
 
-    public Task<EmailVerificationResponse> VerifyEmailAsync(string token)
+    public Task<Result<PasswordResetResponse>> ForgotPasswordAsync(string email)
     {
         throw new NotImplementedException();
     }
 
-    public Task<EmailVerificationResponse> ResendVerificationEmailAsync(string email)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<PasswordResetResponse> ForgotPasswordAsync(string email)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<PasswordResetResponse> ResetPasswordAsync(ResetPasswordRequest request)
+    public Task<Result<PasswordResetResponse>> ResetPasswordAsync(ResetPasswordRequest request)
     {
         throw new NotImplementedException();
     }
