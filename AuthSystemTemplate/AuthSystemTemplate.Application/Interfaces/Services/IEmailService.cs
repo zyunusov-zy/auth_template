@@ -1,3 +1,5 @@
+using AuthSystemTemplate.Domain.Entities;
+
 namespace AuthSystemTemplate.Application.Interfaces.Services;
 
 public interface IEmailService
@@ -23,7 +25,7 @@ public interface IEmailService
     /// <summary>
     /// Send welcome email after successful registration
     /// </summary>
-    Task SendWelcomeEmailAsync(string toEmail, string userName);
+    Task SendWelcomeEmailAsync(User user);
     
     /// <summary>
     /// Generic email sending method

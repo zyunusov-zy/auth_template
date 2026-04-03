@@ -30,7 +30,7 @@ public class UnitOfWork : IUnitOfWork
     public IPasswordResetTokenRepository PasswordResetTokens => 
         _passwordResetTokens ??= new PasswordResetTokenRepository(_context);
     
-    public EmailVerificationTokenRepository EmailVerificationTokens => 
+    public IEmailVerificationTokenRepository EmailVerificationTokens => 
         _emailVerificationToken ??= new EmailVerificationTokenRepository(_context);
     
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

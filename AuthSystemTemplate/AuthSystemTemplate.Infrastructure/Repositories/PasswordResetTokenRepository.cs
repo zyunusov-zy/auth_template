@@ -1,6 +1,7 @@
 using AuthSystemTemplate.Application.Interfaces.Repositories;
 using AuthSystemTemplate.Domain.Entities;
 using AuthSystemTemplate.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace AuthSystemTemplate.Infrastructure.Repositories;
 
@@ -10,33 +11,50 @@ public class PasswordResetTokenRepository : Repository<PasswordResetToken>, IPas
     {
     }
 
-    public Task<PasswordResetToken?> GetByTokenAsync(string token)
+    public async Task<PasswordResetToken?> GetByTokenAsync(string token)
     {
-        throw new NotImplementedException();
+        return await _dbSet.FirstOrDefaultAsync(x => x.Token == token);
     }
 
-    public Task<PasswordResetToken?> GetActiveTokenByUserIdAsync(int userId)
+    public async Task<PasswordResetToken?> GetActiveTokenByUserIdAsync(int userId)
     {
-        throw new NotImplementedException();
+        return await _dbSet.FirstOrDefaultAsync(x => 
+            x.UserId == userId && 
+            !x.IsUsed && 
+            x.ExpiresAt > DateTime.UtcNow);
     }
 
-    public Task MarkAsUsedAsync(string token)
+    public async Task MarkAsUsedAsync(string token)
     {
-        throw new NotImplementedException();
+        var tokenDb = await _dbSet.FirstOrDefaultAsync(x => x.Token == token);
+        if (tokenDb is null) return;
+        tokenDb.IsUsed = true;
     }
 
-    public Task InvalidateUserTokensAsync(int userId)
+    public async Task InvalidateUserTokensAsync(int userId)
     {
-        throw new NotImplementedException();
+        var tokens = await _dbSet
+            .Where(x => x.UserId == userId && !x.IsUsed)
+            .ToListAsync();
+        
+        foreach (var token in tokens)
+            token.IsUsed = true;
     }
 
-    public Task RemoveExpiredTokensAsync()
+    public async Task RemoveExpiredTokensAsync()
     {
-        throw new NotImplementedException();
+        var expiredTokens = await _dbSet
+            .Where(x => x.ExpiresAt < DateTime.UtcNow)
+            .ToListAsync();
+        
+        _dbSet.RemoveRange(expiredTokens);
     }
 
-    public Task<bool> IsTokenValidAsync(string token)
+    public async Task<bool> IsTokenValidAsync(string token)
     {
-        throw new NotImplementedException();
+        return await _dbSet.AnyAsync(x => 
+            x.Token == token && 
+            !x.IsUsed && 
+            x.ExpiresAt > DateTime.UtcNow);
     }
 }

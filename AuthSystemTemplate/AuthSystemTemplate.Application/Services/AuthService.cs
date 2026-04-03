@@ -165,24 +165,132 @@ public class AuthService : IAuthService
         }
     }
 
-    public Task<Result<EmailVerificationResponse>> VerifyEmailAsync(string token)
+    public async Task<Result<EmailVerificationResponse>> VerifyEmailAsync(string token)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var tokenDb = await _unitOfWork.EmailVerificationTokens.FirstOrDefaultAsync(x => x.Token == token.Trim());
+            if (tokenDb is null)
+                return Result<EmailVerificationResponse>.Failure(Error.NotFound("Not valid token"));
+            if (tokenDb.ExpiresAt < DateTime.UtcNow)
+                return Result<EmailVerificationResponse>.Failure(Error.Unauthorized("Token expired"));
+            if (tokenDb.IsUsed)
+                return Result<EmailVerificationResponse>.Failure(Error.Unauthorized("Token already used"));
+            tokenDb.IsUsed = true;
+            await _unitOfWork.EmailVerificationTokens.UpdateAsync(tokenDb);
+            var user = await _unitOfWork.Users.GetByIdAsync(tokenDb.UserId);
+            if (user is null)
+                return Result<EmailVerificationResponse>.Failure(Error.NotFound("User not found"));
+            user.EmailVerified = true;
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+            await _emailService.SendWelcomeEmailAsync(user);
+            return Result<EmailVerificationResponse>.Success(
+                new EmailVerificationResponse(true, "Successfully verified email"));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
-    public Task<Result<EmailVerificationResponse>> ResendVerificationEmailAsync(string email)
+    public async Task<Result<EmailVerificationResponse>> ResendVerificationEmailAsync(string email)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var user = await _unitOfWork.Users.GetByEmailAsync(email.Trim());
+            if (user is null)
+                return Result<EmailVerificationResponse>.Failure(Error.NotFound("User not found"));
+            if (user.EmailVerified)
+                return Result<EmailVerificationResponse>.Failure(Error.Conflict("Email already verified"));
+            var verTokens = await _unitOfWork.EmailVerificationTokens.FindAsync(x => x.UserId == user.Id);
+            foreach (var token in verTokens)
+                token.IsUsed = true;
+
+            var now = DateTime.UtcNow;
+
+            var verificationToken = _tokenService.GenerateEmailVerificationToken();
+            var emailToken = new EmailVerificationToken
+            {
+                Token = verificationToken,
+                ExpiresAt = now.AddHours(24),
+                CreatedAt = now,
+                IsUsed = false,
+                User = user
+            };
+
+            user.EmailVerificationTokens.Add(emailToken);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _emailService.SendEmailVerificationAsync(
+                user.Email,
+                verificationToken,
+                user.FirstName
+            );
+
+            return Result<EmailVerificationResponse>.Success(
+                new EmailVerificationResponse(true, "Verification email resent"));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
-    public Task<Result<PasswordResetResponse>> ForgotPasswordAsync(string email)
+    public async Task<Result<PasswordResetResponse>> ForgotPasswordAsync(string email)
     {
-        throw new NotImplementedException();
+        var user = await _unitOfWork.Users.GetByEmailAsync(email);
+        if (user is null)
+            return Result<PasswordResetResponse>.Failure(Error.NotFound("User not found with email"));
+        await _unitOfWork.PasswordResetTokens.InvalidateUserTokensAsync(user.Id);
+
+        var now = DateTime.UtcNow;
+        var token = _tokenService.GeneratePasswordResetToken();
+        var passwordResetToken = new PasswordResetToken
+        {
+            Token = token,
+            CreatedAt = now,
+            ExpiresAt = now.AddHours(1),
+            IsUsed = false,
+            UserId = user.Id,
+            UsedAt = null,
+            User = user
+        };
+
+        await _unitOfWork.PasswordResetTokens.AddAsync(passwordResetToken);
+        await _unitOfWork.SaveChangesAsync();
+
+        await _emailService.SendPasswordResetEmailAsync(user.Email, token, user.FirstName);
+
+        return Result<PasswordResetResponse>.Success(new PasswordResetResponse(true, "A reset link has been sent"));
     }
 
-    public Task<Result<PasswordResetResponse>> ResetPasswordAsync(ResetPasswordRequest request)
+    public async Task<Result<PasswordResetResponse>> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        throw new NotImplementedException();
+        var token = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(request.Token);
+        if (token is null)
+            return Result<PasswordResetResponse>.Failure(Error.NotFound("Token not found"));
+        if (token.IsUsed || token.ExpiresAt < DateTime.UtcNow)
+            return Result<PasswordResetResponse>.Failure(Error.Failure("Token is not valid"));
+        var user = token.User;
+        var isSamePassword = _passHash.VerifyPassword(request.NewPassword, user.PasswordHash, user.PasswordSalt);
+        if (isSamePassword)
+            return Result<PasswordResetResponse>.Failure(
+                Error.Conflict("New password cannot be the same as the old password"));
+        var (hash, salt) = _passHash.HashPassword(request.NewPassword);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+
+        token.IsUsed = true;
+
+        await _unitOfWork.Users.UpdateAsync(user);
+        await _unitOfWork.PasswordResetTokens.UpdateAsync(token);
+        await _unitOfWork.SaveChangesAsync();
+
+        await _emailService.SendPasswordChangedConfirmationAsync(user.Email, user.FirstName);
+        return Result<PasswordResetResponse>.Success(new PasswordResetResponse(true, "Password reset successfully"));
     }
 
     public Task LogoutAsync(int userId, string refreshToken)

@@ -6,6 +6,7 @@ public interface IUnitOfWork : IDisposable
     IRoleRepository Roles { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     IPasswordResetTokenRepository PasswordResetTokens { get; }
+    IEmailVerificationTokenRepository EmailVerificationTokens { get; }
     
     /// <summary>
     /// Save all changes to database

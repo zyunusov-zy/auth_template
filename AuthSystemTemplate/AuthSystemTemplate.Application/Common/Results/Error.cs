@@ -24,4 +24,7 @@ public class Error
 
     public static Error Failure(string message) =>
         new("Failure", message);
+
+    public static Error Conflict(string message) =>
+        new Error("Conflict", message);
 }

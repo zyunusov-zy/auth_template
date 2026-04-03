@@ -1,3 +1,3 @@
 namespace AuthSystemTemplate.Application.DTOs.Auth;
 
-public record PasswordResetResponse(string Message);
+public record PasswordResetResponse(bool Success,string Message);
