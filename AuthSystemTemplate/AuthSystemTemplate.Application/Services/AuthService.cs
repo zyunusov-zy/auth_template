@@ -5,6 +5,7 @@ using AuthSystemTemplate.Application.Interfaces.Repositories;
 using AuthSystemTemplate.Application.Interfaces.Services;
 using AuthSystemTemplate.Domain.Entities;
 using AuthSystemTemplate.Domain.Enums;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 
 namespace AuthSystemTemplate.Application.Services;
@@ -16,15 +17,17 @@ public class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly ILogger<AuthService> _logger;
+    private readonly IMapper _mapper;
 
     public AuthService(IUnitOfWork unitOfWork, IPasswordHasher passHash, ITokenService tokenService,
-        IEmailService emailService, ILogger<AuthService> logger)
+        IEmailService emailService, ILogger<AuthService> logger, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _passHash = passHash;
         _tokenService = tokenService;
         _emailService = emailService;
         _logger = logger;
+        _mapper = mapper;
     }
 
     public async Task<Result<RegisterResponse>> RegisterAsync(RegisterRequest request)
@@ -120,18 +123,7 @@ public class AuthService : IAuthService
             var accessToken = _tokenService.GenerateAccessToken(user, roles);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
-            var rolesList = user.UserRoles.Select(ur => ur.Role.Name.ToString()).ToList();
-
-            var userDto = new UserDto
-            (
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                rolesList,
-                user.EmailVerified,
-                user.CreatedAt
-            );
+            var userDto = _mapper.Map<UserDto>(user);
             return Result<LoginResponse>.Success(new LoginResponse(
                 accessToken,
                 refreshToken,

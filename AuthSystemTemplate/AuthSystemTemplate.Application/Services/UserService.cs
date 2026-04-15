@@ -2,7 +2,9 @@ using AuthSystemTemplate.Application.Common.Results;
 using AuthSystemTemplate.Application.DTOs.User;
 using AuthSystemTemplate.Application.Interfaces.Repositories;
 using AuthSystemTemplate.Application.Interfaces.Services;
+using AuthSystemTemplate.Domain.Entities;
 using AuthSystemTemplate.Domain.Enums;
+using AutoMapper;
 
 namespace AuthSystemTemplate.Application.Services;
 
@@ -11,9 +13,11 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IAuthService _authService;
+    private readonly IMapper _mapper;
 
-    public UserService(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher, IAuthService authService)
+    public UserService(IMapper mapper, IUnitOfWork unitOfWork, IPasswordHasher passwordHasher, IAuthService authService)
     {
+        _mapper = mapper;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _authService = authService;
@@ -27,20 +31,7 @@ public class UserService : IUserService
             if (user is null)
                 return Result<UserDto>.Failure(Error.NotFound("User not found"));
 
-            var roles = await _unitOfWork.Roles.GetUserRolesAsync(userId);
-            var roleNames = roles.Select(x => x.Name.ToString()).ToList();
-
-            var userDto = new UserDto
-            (
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                roleNames,
-                user.EmailVerified,
-                user.CreatedAt
-            );
-            return Result<UserDto>.Success(userDto);
+            return Result<UserDto>.Success(_mapper.Map<UserDto>(user));
         }
         catch (Exception e)
         {
@@ -61,21 +52,9 @@ public class UserService : IUserService
             if (!string.IsNullOrWhiteSpace(request.LastName))
                 user.LastName = request.LastName;
             await _unitOfWork.Users.UpdateAsync(user);
-            var roles = await _unitOfWork.Roles.GetUserRolesAsync(userId);
-            var roleNames = roles.Select(x => x.Name.ToString()).ToList();
-
 
             await _unitOfWork.SaveChangesAsync();
-            var userDto = new UserDto
-            (
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                roleNames,
-                user.EmailVerified,
-                user.CreatedAt
-            );
+            var userDto = _mapper.Map<UserDto>(user);
             return Result<UserDto>.Success(userDto);
         }
         catch (Exception e)
@@ -116,28 +95,105 @@ public class UserService : IUserService
         }
     }
 
-    public Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
+    public async Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
     {
-        throw new NotImplementedException();
+        try
+        {
+            var users = await _unitOfWork.Users.GetAllAsync();
+            if (users is null)
+                return Result<IEnumerable<UserDto>>.Failure(Error.NotFound("No users found"));
+            return Result<IEnumerable<UserDto>>.Success(users.Select(u => _mapper.Map<UserDto>(u)));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
-    public Task<Result<UserDto?>> GetUserByIdAsync(int userId)
+    public async Task<Result<UserDto?>> GetUserByIdAsync(int userId)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            return user == null
+                ? Result<UserDto?>.Failure(Error.NotFound("User not found"))
+                : Result<UserDto?>.Success(_mapper.Map<UserDto>(user));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
-    public Task<Result> DeleteUserAsync(int userId)
+    public async Task<Result> DeleteUserAsync(int userId)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                return Result.Failure(Error.NotFound("User not found"));
+            await _unitOfWork.Users.DeleteAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+            return Result.Success();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
-    public Task<Result> AssignRoleAsync(int userId, Roles role, int assignedByUserId)
+    public async Task<Result> AssignRoleAsync(int userId, Roles role, int assignedByUserId)
     {
-        throw new NotImplementedException();
+        if (await _unitOfWork.Roles.RoleExistsAsync(role))
+            return Result.Failure(Error.NotFound("Role does not exist"));
+
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+            return Result.Failure(Error.NotFound("User not found"));
+        var roleDb = await _unitOfWork.Roles.GetByNameAsync(role);
+        if (roleDb == null)
+            return Result.Failure(Error.NotFound("Role not found in database"));
+
+        var assignee = await _unitOfWork.Users.GetByIdAsync(assignedByUserId);
+        if (assignee == null)
+            return Result.Failure(Error.NotFound("Assigner user not found"));
+
+        var userRole = new UserRole
+        {
+            UserId = userId,
+            RoleId = roleDb.Id,
+            AssignedBy = assignee
+        };
+        user.UserRoles.Add(userRole);
+        await _unitOfWork.Users.UpdateAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+        return Result.Success();
     }
 
-    public Task<Result> RemoveRoleAsync(int userId, Roles role)
+    public async Task<Result> RemoveRoleAsync(int userId, Roles role)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                return Result.Failure(Error.NotFound("User not found"));
+
+            var userRole = user.UserRoles.FirstOrDefault(ur => ur.Role.Name == role);
+            if (userRole == null)
+                return Result.Failure(Error.NotFound("Role not found"));
+
+            user.UserRoles.Remove(userRole);
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+            return Result.Success();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 }
